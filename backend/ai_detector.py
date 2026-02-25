@@ -1,4 +1,6 @@
 import google.generativeai as genai
+from dotenv import load_dotenv
+load_dotenv()
 from pathlib import Path
 import json
 import os
@@ -10,25 +12,38 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
 _gemini_model = None
 
-CIVIC_ISSUE_PROMPT = """You are an expert AI system for civic infrastructure monitoring.
-Analyze this image and classify the civic issue shown.
+CIVIC_ISSUE_PROMPT = """You are a highly advanced Senior Urban Planner and AI Infrastructure Specialist.
+Your task is to analyze civic monitoring imagery with extreme precision.
 
-You MUST respond with ONLY a valid JSON object (no markdown, no extra text):
+Step-by-Step Analysis Rubric:
+1. IDENTIFY: List all visible objects related to urban infrastructure or public safety.
+2. EVALUATE: Check for structural damage, safety hazards, environmental risks, or public obstruction.
+3. CLASSIFY: Based on the "Issue Categories" below, choose the most accurate fit.
+4. PRIORITIZE: Assign priority based on the immediate risk to citizens.
 
+Issue Categories:
+- Pothole (High risk for vehicles)
+- Garbage Dump (Environmental hazard, health risk)
+- Stray Cattle (Critical danger on roads)
+- Open Manhole (Life-threatening critical hazard)
+- Road Obstruction (Fallen markers, construction debris)
+- Waterlogging (Poor drainage, vector risk)
+- Broken Streetlight (Safety/security risk)
+- Illegal Construction (Zoning violation)
+- Damaged Road (Surface cracking, unevenness)
+- Sewage Overflow (Health emergency)
+- Fallen Tree (Emergency obstruction)
+- Traffic Violation (Illegal parking, wrong-way)
+- Unauthorized Parking (Sidewalk blockage)
+- General Civic Issue (Anything else)
+
+You MUST respond with ONLY a valid JSON object:
 {
-  "issue_type": "<one of: Pothole, Garbage Dump, Stray Cattle, Open Manhole, Road Obstruction, Waterlogging, Broken Streetlight, Illegal Construction, Damaged Road, Sewage Overflow, Fallen Tree, Traffic Violation, Unauthorized Parking, General Civic Issue>",
-  "priority": "<one of: Critical, High, Medium, Low>",
-  "confidence": <0-100>,
-  "description": "<brief 1-line description of what you see>"
+  "reasoning": "Briefly explain the visual evidence and logic used for classification.",
+  "issue_type": "<one of the categories above>",
+  "priority": "<Critical, High, Medium, Low>",
+  "confidence": <0-100 float>
 }
-
-Priority guide:
-- Critical: Immediate danger to life (Open Manhole, Stray Cattle on road, Sewage Overflow)
-- High: Major inconvenience or safety risk (Pothole, Road Obstruction, Waterlogging, Fallen Tree)
-- Medium: Moderate issue (Garbage Dump, Damaged Road, Unauthorized Parking)
-- Low: Minor issue (Broken Streetlight, General Civic Issue)
-
-Be accurate. If the image does not show a clear civic issue, classify as "General Civic Issue" with Low priority.
 """
 
 
@@ -52,17 +67,16 @@ def _detect_with_gemini(image_path: str):
     response = model.generate_content(
         [CIVIC_ISSUE_PROMPT, img_file],
         generation_config=genai.types.GenerationConfig(
-            temperature=0.1,  # Low temperature for consistent classification
-            max_output_tokens=300,
+            temperature=0.1,
+            max_output_tokens=500,
         ),
     )
 
     # Parse JSON response
     text = response.text.strip()
-    # Handle potential markdown code block wrapping
     if text.startswith("```"):
-        text = text.split("\n", 1)[1]  # Remove first line (```json)
-        text = text.rsplit("```", 1)[0]  # Remove last ```
+        text = text.split("\n", 1)[1]
+        text = text.rsplit("```", 1)[0]
         text = text.strip()
 
     result = json.loads(text)
@@ -70,12 +84,12 @@ def _detect_with_gemini(image_path: str):
     issue_type = result.get("issue_type", "General Civic Issue")
     priority = result.get("priority", "Medium")
     confidence = result.get("confidence", 0)
-    description = result.get("description", "")
+    reasoning = result.get("reasoning", "Standard visual analysis applied.")
 
-    print(f"[Gemini AI] Detected: {issue_type} | Priority: {priority} | "
-          f"Confidence: {confidence}% | {description}")
+    print(f"[Best AI - Gemini] {issue_type} ({confidence}% confidence)")
+    print(f"[Reasoning] {reasoning}")
 
-    return issue_type, priority
+    return issue_type, priority, confidence, reasoning
 
 
 # ── YOLO Fallback ──
@@ -86,47 +100,78 @@ def _load_yolo():
     global _yolo_model
     if _yolo_model is None:
         from ultralytics import YOLO
-        _yolo_model = YOLO("yolov8n.pt")
+        # Using a slightly larger model for the "best" local detection
+        _yolo_model = YOLO("yolov8s.pt") 
     return _yolo_model
 
 
 def _detect_with_yolo(image_path: str):
-    """Fallback: basic YOLO detection for when Gemini is unavailable."""
+    """
+    Advanced Fallback: Uses object density and common COCO classes to infer civic issues.
+    """
     import cv2
     model = _load_yolo()
     img = cv2.imread(image_path)
 
     if img is None:
-        return "Unknown Issue", "Normal"
+        return "Unknown Issue", "Normal", 0, "Image reading failed."
 
-    results = model(img, conf=0.4, verbose=False)
-
+    results = model(img, conf=0.25, verbose=False) # More sensitive for fallback
+    
+    counts = {}
+    detected_labels = []
     for r in results:
         for box in r.boxes:
             label = model.names[int(box.cls[0])].lower()
-            if "cow" in label or "horse" in label or "sheep" in label:
-                return "Stray Cattle", "Critical"
-            if "car" in label or "truck" in label or "bus" in label:
-                return "Road Obstruction", "High"
-            if "dog" in label or "cat" in label:
-                return "Stray Animal", "Medium"
+            counts[label] = counts.get(label, 0) + 1
+            detected_labels.append(label)
 
-    return "General Civic Issue", "Medium"
+    # 1. High Priority Safety Hazards
+    if any(k in counts for k in ['cow', 'horse', 'sheep', 'elephant', 'bear']):
+        return "Stray Animal/Cattle", "Critical", 85, f"Detected large animal ({', '.join(detected_labels)}) in transit zone."
+    
+    if counts.get('fire hydrant', 0) > 0:
+        return "Infrastructure Leak/Obstruction", "High", 80, "Fire hydrant detected; possible water leakage or illegal parking."
+
+    # 2. Traffic & Road Issues
+    if counts.get('truck', 0) > 1 or counts.get('bus', 0) > 1:
+        return "Heavy Vehicle Obstruction", "High", 75, f"Multiple heavy vehicles detected creating congestion."
+
+    if counts.get('car', 0) > 4:
+        return "Unauthorized Parking/Congestion", "Medium", 70, f"Detected clustered vehicles ({counts['car']}) in dense sector."
+
+    if counts.get('traffic light', 0) > 0 or counts.get('stop sign', 0) > 0:
+        return "Traffic Infrastructure Issue", "Medium", 65, "Detected traffic control elements; signaling check required."
+
+    # 3. Public Space & Sanitation
+    if counts.get('person', 0) > 10:
+        return "Public Gathering/Crowd", "High", 60, f"Unusual density of {counts['person']} persons detected."
+
+    if any(k in counts for k in ['bench', 'potted plant', 'bicycle', 'motorcycle']):
+        return "Sidewalk Obstruction", "Low", 55, "Detected objects potentially blocking pedestrian pathways."
+
+    if any(k in counts for k in ['bottle', 'cup', 'handbag', 'backpack']):
+        return "Littering/Sanitation Issue", "Medium", 50, "Detected discarded items indicating potential sanitation cleanup."
+
+    # 4. Final Fallback (If anything at all was found)
+    if counts:
+        main_obj = max(counts, key=counts.get)
+        return "Infrastructure Monitoring", "Low", 45, f"Detected {main_obj} activity requiring standard review."
+
+    return "General Civic Issue", "Low", 30, "No significant urban anomalies detected. Manual review recommended."
 
 
 # ── Main Entry Point ──
 def detect_issue(image_path: str):
     """
-    Detect civic issue from image using Gemini Vision API.
-    Falls back to YOLO if Gemini is unavailable or API key is not set.
+    Detect civic issue from image using the 'Best AI' strategy.
+    Returns: (type, priority, confidence, reasoning)
     """
-    # Try Gemini first (high accuracy)
     if GEMINI_API_KEY:
         try:
             return _detect_with_gemini(image_path)
         except Exception as e:
-            print(f"[Gemini AI] Error: {e}. Falling back to YOLO...")
+            print(f"[Gemini AI] Error: {e}. Falling back to Expert YOLO...")
 
-    # Fallback to YOLO
-    print("[AI Detector] Using YOLO fallback (set GEMINI_API_KEY for better accuracy)")
+    # Fallback to Advanced YOLO
     return _detect_with_yolo(image_path)

@@ -25,4 +25,6 @@ class Issue(Base):
     after_image = Column(Text)
     latitude = Column(Float)
     longitude = Column(Float)
+    ai_confidence = Column(Float, nullable=True)
+    ai_reasoning = Column(Text, nullable=True)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)

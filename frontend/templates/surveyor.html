@@ -112,7 +112,12 @@
 
     <nav class="navbar">
         <span class="logo">🏛️ Civic Monitor</span>
-        <span class="nav-badge">📍 Surveyor</span>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <span class="nav-badge">📍 Surveyor</span>
+            <a href="/logout" class="btn btn-nav"
+                style="padding: 6px 12px; font-size: 0.8rem; background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #ef4444;">🚪
+                Logout</a>
+        </div>
     </nav>
 
     <div class="page">
@@ -157,7 +162,12 @@
             <div class="success-overlay" id="success-overlay">
                 <span class="success-icon">✅</span>
                 <div class="success-text">Issue Reported Successfully!</div>
-                <p style="color:var(--text-muted); margin-top:10px; font-size:0.9rem;">AI is analyzing your photo…</p>
+                <div class="ai-badge" style="margin-top: 15px;">
+                    <span class="ai-dot"></span>
+                    Advanced AI Processing (YOLOv8) active…
+                </div>
+                <p style="color:var(--text-muted); margin-top:10px; font-size:0.9rem;">The system is automatically
+                    classifying the issue and determining priority.</p>
                 <button class="btn btn-nav"
                     onclick="document.getElementById('success-overlay').classList.remove('show')"
                     style="margin-top:24px;">📸 Report Another</button>
@@ -290,6 +300,43 @@
         animateParticles();
     </script>
 
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo">🏛️ Civic Monitor</span>
+                <p>The official civic observation and issue tracking system. Empowering citizens and responders to build
+                    a better city through AI and real-time data.</p>
+                <div class="official-badge" style="margin-top: 15px;">
+                    🛡️ Urban Tech Platform
+                </div>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Operations</h4>
+                    <ul>
+                        <li><a href="/">Login</a></li>
+                        <li><a href="/register">Registration</a></li>
+                        <li><a href="/dashboard">Dashboard</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Support</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 Civic Monitor System. All rights reserved.</span>
+            <div style="display: flex; gap: 20px;">
+                <span>v1.2.0-Alpha</span>
+                <span>System Status: <span style="color: var(--green);">? Online</span></span>
+            </div>
+        </div>
+    </footer>
 </body>
 
 </html>

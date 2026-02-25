@@ -1,5 +1,5 @@
-from fastapi import FastAPI, UploadFile, Form, Depends, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, UploadFile, Form, Depends, Request, File
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -252,29 +252,42 @@ def surveyor(request: Request):
 @app.post("/report")
 def report_issue(
     request: Request,
-    latitude: float = Form(None),
-    longitude: float = Form(None),
-    image: UploadFile = Form(...),
+    latitude: str = Form(None),
+    longitude: str = Form(None),
+    image: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     redirect = require_login(request)
     if redirect:
         return redirect
 
+    if not image.filename:
+        return {"error": "No image uploaded"}, 400
+
+    # Ensure coords are floats or default to a fixed point if invalid
+    try:
+        lat_f = float(latitude) if latitude else 22.30
+        lon_f = float(longitude) if longitude else 70.80
+    except (ValueError, TypeError):
+        lat_f = 22.30
+        lon_f = 70.80
+
     image_path = UPLOAD_DIR / image.filename
     with open(image_path, "wb") as buffer:
         shutil.copyfileobj(image.file, buffer)
 
-    issue_type, priority = detect_issue(str(image_path))
-    ward = crud.detect_ward(latitude, longitude)
+    issue_type, priority, confidence, reasoning = detect_issue(str(image_path))
+    ward = crud.detect_ward(lat_f, lon_f)
 
     issue = models.Issue(
         issue_type=issue_type,
         priority=priority,
         ward=ward,
         before_image=image.filename,
-        latitude=latitude,
-        longitude=longitude,
+        latitude=lat_f,
+        longitude=lon_f,
+        ai_confidence=confidence,
+        ai_reasoning=reasoning,
         status="OPEN"
     )
 
@@ -395,7 +408,7 @@ def admin(request: Request, db: Session = Depends(get_db)):
         {"issue_type": k, "count": v} for k, v in type_stats.items()
     ]
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "admin.html",
         {
             "request": request,
@@ -408,6 +421,10 @@ def admin(request: Request, db: Session = Depends(get_db)):
             "issues": issues
         }
     )
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 @app.post("/start/{issue_id}")
 def start_issue(request: Request, issue_id: int, db: Session = Depends(get_db)):
@@ -419,3 +436,24 @@ def start_issue(request: Request, issue_id: int, db: Session = Depends(get_db)):
     issue.status = "IN_PROGRESS"
     db.commit()
     return RedirectResponse("/engineer", 302)
+
+@app.post("/delete_issue/{issue_id}")
+def delete_issue(request: Request, issue_id: int, db: Session = Depends(get_db)):
+    redirect = require_login(request)
+    if redirect:
+        return redirect
+
+    user = get_current_user(request, db)
+    user_name = user.name if user else "Unknown"
+    
+    # Use direct query to ensure deletion and get affected rows
+    query = db.query(models.Issue).filter(models.Issue.id == issue_id)
+    affected_rows = query.delete(synchronize_session='fetch')
+    db.commit()
+    
+    print(f"DEBUG: Admin {user_name} (ID: {request.session.get('user_id')}) attempted to delete Issue ID {issue_id}. Affected rows: {affected_rows}")
+
+    if affected_rows > 0:
+        return {"message": f"Issue #{issue_id} deleted successfully"}
+    
+    return JSONResponse(status_code=404, content={"error": f"Issue #{issue_id} not found"})

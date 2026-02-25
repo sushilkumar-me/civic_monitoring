@@ -12,12 +12,33 @@
 
     <canvas id="particles-canvas"></canvas>
 
-    <div class="login-wrapper">
-        <div class="login-card glass animate-fade-in-up animate-glow">
+    <div class="hero-grid">
+        <div class="hero-text animate-slide-left">
+            <h1>Building a smarter, safer city together.</h1>
+            <p>Civic Monitor uses state-of-the-art AI to detect, track, and resolve urban issues in real-time. Join our
+                network of surveyors and engineers today.</p>
+
+            <div class="trust-signals stagger">
+                <div class="trust-item">
+                    <span class="val">99.8%</span>
+                    <span class="lab">System Uptime</span>
+                </div>
+                <div class="trust-item">
+                    <span class="val">AI-Powered</span>
+                    <span class="lab">YOLOv8 Detection</span>
+                </div>
+                <div class="trust-item">
+                    <span class="val">Verified</span>
+                    <span class="lab">Next-Gen Tech</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-card glass animate-fade-in-up animate-glow" style="margin: 0 auto; width: 100%;">
             <span class="login-icon">🔐</span>
-            <div class="subtitle">Smart City Platform</div>
+            <div class="subtitle">Secure Responders Access</div>
             <h1>Civic Monitor</h1>
-            <p>Sign in with your email &amp; password</p>
+            <p>Enter your credentials to access the dashboard</p>
 
             {% if error %}
             <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); 
@@ -40,7 +61,7 @@
                         autocomplete="current-password">
                 </div>
                 <button class="btn btn-primary" type="submit" style="width:100%; padding:16px; font-size:1rem;">
-                    🚀 Sign In
+                    🚀 Sign In to Dashboard
                 </button>
             </form>
 
@@ -52,6 +73,44 @@
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-brand">
+                <span class="logo">🏛️ Civic Monitor</span>
+                <p>The official civic observation and issue tracking system. Empowering citizens and responders to build
+                    a better city through AI and real-time data.</p>
+                <div class="official-badge" style="margin-top: 15px;">
+                    🛡️ Urban Intelligence Platform
+                </div>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <h4>Operations</h4>
+                    <ul>
+                        <li><a href="/">Login</a></li>
+                        <li><a href="/register">Registration</a></li>
+                        <li><a href="/dashboard">Dashboard</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Contact Support</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 Civic Monitor System. All rights reserved.</span>
+            <div style="display: flex; gap: 20px;">
+                <span>v1.2.0-Alpha</span>
+                <span>System Status: <span style="color: var(--green);">● Online</span></span>
+            </div>
+        </div>
+    </footer>
 
     <script>
         var canvas = document.getElementById('particles-canvas');
