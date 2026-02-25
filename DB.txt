@@ -1,0 +1,26 @@
+CREATE DATABASE civic_monitoring;
+
+CREATE TABLE users(
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100),
+    role VARCHAR(20),
+    ward INT
+);
+
+CREATE TABLE issues(
+    id SERIAL PRIMARY KEY,
+    issue_type VARCHAR(50),
+    ward INT,
+    priority VARCHAR(20),
+    status VARCHAR(20),
+    before_image TEXT,
+    after_image TEXT,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO users VALUES
+(DEFAULT,'Amit','surveyor',3),
+(DEFAULT,'Rahul','engineer',3),
+(DEFAULT,'Admin','admin',0);

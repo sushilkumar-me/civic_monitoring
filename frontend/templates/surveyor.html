@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Report Issue — Civic Monitoring</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .upload-zone {
+            position: relative;
+            border: 2px dashed rgba(99, 102, 241, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            background: rgba(99, 102, 241, 0.03);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(99, 102, 241, 0.08);
+            transform: scale(1.01);
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.1);
+        }
+
+        .upload-zone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-zone .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+            filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.3));
+        }
+
+        .upload-zone .upload-text {
+            color: var(--text-muted);
+            font-size: 0.88rem;
+        }
+
+        .upload-zone .upload-hint {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        .upload-zone .file-name {
+            margin-top: 12px;
+            font-size: 0.82rem;
+            color: var(--green);
+            font-weight: 700;
+            display: none;
+        }
+
+        .preview-img {
+            display: none;
+            width: 100%;
+            max-height: 220px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            margin-top: 16px;
+            border: 1px solid var(--glass-border);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .success-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(5, 8, 16, 0.9);
+            backdrop-filter: blur(20px);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .success-overlay.show {
+            display: flex;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .success-text {
+            margin-top: 20px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--green), var(--accent2));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="particles-canvas"></canvas>
+
+    <nav class="navbar">
+        <span class="logo">🏛️ Civic Monitor</span>
+        <span class="nav-badge">📍 Surveyor</span>
+    </nav>
+
+    <div class="page">
+
+        <div class="glass-static section animate-fade-in-up" style="max-width:580px; margin: 0 auto;">
+            <div class="section-title">
+                <span class="icon">📸</span> Report Civic Issue
+            </div>
+
+            <div class="location-status" id="loc-status">
+                <span class="dot dot-searching"></span>
+                <span id="status-text">Acquiring GPS location…</span>
+            </div>
+
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+
+            <form action="/report" method="post" enctype="multipart/form-data" id="report-form">
+                <input type="hidden" name="latitude" id="latitude">
+                <input type="hidden" name="longitude" id="longitude">
+
+                <div class="form-group">
+                    <label>📷 Upload Evidence Photo</label>
+                    <div class="upload-zone" id="upload-zone">
+                        <span class="upload-icon">📁</span>
+                        <span class="upload-text">Tap to capture or select an image</span>
+                        <div class="upload-hint">JPG, PNG up to 10MB</div>
+                        <span class="file-name" id="file-name"></span>
+                        <input type="file" name="image" accept="image/*" required id="file-input">
+                    </div>
+                    <img class="preview-img" id="preview">
+                </div>
+
+                <button class="btn btn-primary" type="submit" id="submit-btn"
+                    style="width:100%; padding:16px; font-size:1rem;">
+                    🚀 Submit Report
+                </button>
+            </form>
+
+            <!-- Success Overlay -->
+            <div class="success-overlay" id="success-overlay">
+                <span class="success-icon">✅</span>
+                <div class="success-text">Issue Reported Successfully!</div>
+                <p style="color:var(--text-muted); margin-top:10px; font-size:0.9rem;">AI is analyzing your photo…</p>
+                <button class="btn btn-nav"
+                    onclick="document.getElementById('success-overlay').classList.remove('show')"
+                    style="margin-top:24px;">📸 Report Another</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ── AJAX Form Submit ──
+        document.getElementById('report-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var btn = document.getElementById('submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Uploading…';
+
+            var formData = new FormData(this);
+
+            fetch('/report', {
+                method: 'POST',
+                body: formData
+            })
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 Submit Report';
+                    // Show success overlay
+                    document.getElementById('success-overlay').classList.add('show');
+                    // Reset form
+                    document.getElementById('report-form').reset();
+                    document.getElementById('preview').style.display = 'none';
+                    document.getElementById('file-name').style.display = 'none';
+                })
+                .catch(function (err) {
+                    btn.disabled = false;
+                    btn.innerHTML = '🚀 Submit Report';
+                    // Show error toast
+                    var toast = document.createElement('div');
+                    toast.className = 'toast error';
+                    toast.innerHTML = '❌ Upload failed. Please try again.';
+                    document.body.appendChild(toast);
+                    setTimeout(function () { toast.remove(); }, 4000);
+                });
+        });
+        // ── Geolocation ──
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            document.getElementById("latitude").value = lat;
+            document.getElementById("longitude").value = lng;
+            document.getElementById("status-text").innerText =
+                `Located: ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+
+            // Update indicator
+            const dot = document.querySelector('.dot');
+            dot.classList.remove('dot-searching');
+            dot.classList.add('dot-found');
+            document.getElementById('loc-status').classList.add('located');
+
+            const map = L.map("map").setView([lat, lng], 16);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            L.marker([lat, lng]).addTo(map).bindPopup("📍 Your location").openPopup();
+        }, () => {
+            document.getElementById("status-text").innerText = "⚠️ Location access denied";
+            document.querySelector('.dot').style.background = 'var(--red)';
+        });
+
+        // ── File Preview ──
+        const fileInput = document.getElementById("file-input");
+        const uploadZone = document.getElementById("upload-zone");
+
+        fileInput.addEventListener("change", function () {
+            const file = this.files[0];
+            if (file) {
+                document.getElementById("file-name").textContent = "✓ " + file.name;
+                document.getElementById("file-name").style.display = "block";
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = document.getElementById("preview");
+                    img.src = e.target.result;
+                    img.style.display = "block";
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag & Drop visual
+        uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+        uploadZone.addEventListener('drop', () => uploadZone.classList.remove('drag-over'));
+
+        // ── Particles ──
+        const canvas = document.getElementById('particles-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        class Particle {
+            constructor() { this.reset(); }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 1.5 + 0.3;
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.speedY = (Math.random() - 0.5) * 0.3;
+                this.opacity = Math.random() * 0.3 + 0.05;
+                this.hue = [239, 186, 155][Math.floor(Math.random() * 3)];
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${this.hue}, 70%, 60%, ${this.opacity})`;
+                ctx.fill();
+            }
+        }
+        for (let i = 0; i < 40; i++) particles.push(new Particle());
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+    </script>
+
+</body>
+
+</html>

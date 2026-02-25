@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In — Civic Monitor</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <canvas id="particles-canvas"></canvas>
+
+    <div class="login-wrapper">
+        <div class="login-card glass animate-fade-in-up animate-glow">
+            <span class="login-icon">🔐</span>
+            <div class="subtitle">Smart City Platform</div>
+            <h1>Civic Monitor</h1>
+            <p>Sign in with your email &amp; password</p>
+
+            {% if error %}
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); 
+                    border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; 
+                    color: #ef4444; font-size: 0.85rem; font-weight: 600;
+                    animation: fadeInUp 0.3s ease;">
+                ⚠️ {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post" action="/login">
+                <div class="form-group">
+                    <label>📧 Email</label>
+                    <input class="input" type="email" name="email" placeholder="you@example.com" required autofocus
+                        autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label>🔑 Password</label>
+                    <input class="input" type="password" name="password" placeholder="••••••••" required
+                        autocomplete="current-password">
+                </div>
+                <button class="btn btn-primary" type="submit" style="width:100%; padding:16px; font-size:1rem;">
+                    🚀 Sign In
+                </button>
+            </form>
+
+            <div style="margin-top:24px; padding-top:20px; border-top: 1px solid rgba(255,255,255,0.06);">
+                <p style="color:var(--text-dim); font-size:0.82rem; margin-bottom:12px;">Don't have an account?</p>
+                <a href="/register" class="btn btn-nav" style="width:100%; padding:14px; font-size:0.9rem;">
+                    ✨ Create Account
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var canvas = document.getElementById('particles-canvas');
+        var ctx = canvas.getContext('2d');
+        var particles = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        function Particle() { this.reset(); }
+        Particle.prototype.reset = function () {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2 + 0.5;
+            this.speedX = (Math.random() - 0.5) * 0.4;
+            this.speedY = (Math.random() - 0.5) * 0.4;
+            this.opacity = Math.random() * 0.4 + 0.1;
+            this.hue = Math.random() > 0.5 ? 239 : 186;
+        };
+        Particle.prototype.update = function () {
+            this.x += this.speedX; this.y += this.speedY;
+            if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+        };
+        Particle.prototype.draw = function () {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsla(' + this.hue + ', 80%, 65%, ' + this.opacity + ')';
+            ctx.fill();
+        };
+        for (var i = 0; i < 60; i++) particles.push(new Particle());
+
+        function drawLines() {
+            for (var i = 0; i < particles.length; i++) {
+                for (var j = i + 1; j < particles.length; j++) {
+                    var dx = particles[i].x - particles[j].x;
+                    var dy = particles[i].y - particles[j].y;
+                    var dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = 'rgba(99, 102, 241, ' + (0.06 * (1 - dist / 120)) + ')';
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var k = 0; k < particles.length; k++) { particles[k].update(); particles[k].draw(); }
+            drawLines();
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+
+</body>
+
+</html>

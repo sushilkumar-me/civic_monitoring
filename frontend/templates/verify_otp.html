@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP — Civic Monitor</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .otp-inputs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 24px 0;
+        }
+
+        .otp-inputs input {
+            width: 52px;
+            height: 62px;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            color: var(--accent-light);
+            outline: none;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            caret-color: var(--accent);
+            font-family: 'Inter', monospace;
+        }
+
+        .otp-inputs input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2), 0 0 30px rgba(99, 102, 241, 0.1);
+            background: rgba(99, 102, 241, 0.05);
+            transform: scale(1.08);
+        }
+
+        .otp-inputs input.filled {
+            border-color: var(--green);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+        }
+
+        /* Hidden real input */
+        .hidden-otp {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .demo-otp-box {
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin-bottom: 20px;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .demo-otp-box .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--orange);
+            margin-bottom: 6px;
+        }
+
+        .demo-otp-box .code {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: 10px;
+            color: var(--orange);
+            text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="particles-canvas"></canvas>
+
+    <div class="login-wrapper">
+        <div class="login-card glass animate-fade-in-up" style="max-width:440px;">
+            <span class="login-icon">🛡️</span>
+            <div class="subtitle">Two-Factor Authentication</div>
+            <h1>Verify OTP</h1>
+            <p>Enter the 6-digit code sent to<br>
+                <span style="color:var(--accent-light); font-weight:600;">{{ email }}</span>
+            </p>
+
+            {% if error %}
+            <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); 
+                    border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; 
+                    color: #ef4444; font-size: 0.85rem; font-weight: 600;">
+                ⚠️ {{ error }}
+            </div>
+            {% endif %}
+
+            {% if demo_otp %}
+            <div class="demo-otp-box">
+                <div class="label">🧪 Demo Mode — Your OTP</div>
+                <div class="code">{{ demo_otp }}</div>
+            </div>
+            {% endif %}
+
+            {% if email_sent %}
+            <div style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); 
+                    border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; 
+                    color: var(--green); font-size: 0.82rem; font-weight: 600;">
+                ✅ OTP sent to your email
+            </div>
+            {% endif %}
+
+            <form method="post" action="/verify-otp" id="otp-form">
+                <input type="hidden" name="otp" id="otp-hidden">
+
+                <div class="otp-inputs" id="otp-box">
+                    <input type="text" maxlength="1" data-idx="0" inputmode="numeric" autofocus>
+                    <input type="text" maxlength="1" data-idx="1" inputmode="numeric">
+                    <input type="text" maxlength="1" data-idx="2" inputmode="numeric">
+                    <input type="text" maxlength="1" data-idx="3" inputmode="numeric">
+                    <input type="text" maxlength="1" data-idx="4" inputmode="numeric">
+                    <input type="text" maxlength="1" data-idx="5" inputmode="numeric">
+                </div>
+
+                <button class="btn btn-primary" type="submit" id="verify-btn"
+                    style="width:100%; padding:16px; font-size:1rem;">
+                    ✅ Verify Code
+                </button>
+            </form>
+
+            <div style="margin-top:20px; display:flex; gap:12px; justify-content:center;">
+                <a href="/resend-otp" class="btn btn-nav" style="font-size:0.82rem; padding:10px 18px;">
+                    🔄 Resend OTP
+                </a>
+                <a href="/" class="btn btn-nav" style="font-size:0.82rem; padding:10px 18px;">
+                    ← Back to Login
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── OTP Input auto-advance ──
+        var inputs = document.querySelectorAll('#otp-box input');
+        var hidden = document.getElementById('otp-hidden');
+        var form = document.getElementById('otp-form');
+
+        function updateHidden() {
+            var code = '';
+            for (var i = 0; i < inputs.length; i++) {
+                code += inputs[i].value;
+                if (inputs[i].value) {
+                    inputs[i].classList.add('filled');
+                } else {
+                    inputs[i].classList.remove('filled');
+                }
+            }
+            hidden.value = code;
+        }
+
+        for (var i = 0; i < inputs.length; i++) {
+            (function (idx) {
+                inputs[idx].addEventListener('input', function () {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                    updateHidden();
+                    if (this.value && idx < inputs.length - 1) {
+                        inputs[idx + 1].focus();
+                    }
+                    // Auto-submit when all 6 digits are entered
+                    if (hidden.value.length === 6) {
+                        setTimeout(function () { form.submit(); }, 300);
+                    }
+                });
+                inputs[idx].addEventListener('keydown', function (e) {
+                    if (e.key === 'Backspace' && !this.value && idx > 0) {
+                        inputs[idx - 1].focus();
+                        inputs[idx - 1].value = '';
+                        updateHidden();
+                    }
+                });
+                // Allow paste
+                inputs[idx].addEventListener('paste', function (e) {
+                    e.preventDefault();
+                    var data = (e.clipboardData || window.clipboardData).getData('text').replace(/[^0-9]/g, '');
+                    for (var k = 0; k < Math.min(data.length, 6); k++) {
+                        inputs[k].value = data[k];
+                    }
+                    updateHidden();
+                    if (data.length >= 6) {
+                        inputs[5].focus();
+                        setTimeout(function () { form.submit(); }, 300);
+                    } else {
+                        inputs[Math.min(data.length, 5)].focus();
+                    }
+                });
+            })(i);
+        }
+
+        // ── Particles ──
+        var canvas = document.getElementById('particles-canvas');
+        var ctx = canvas.getContext('2d');
+        var particles = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        function Particle() { this.reset(); }
+        Particle.prototype.reset = function () {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 1.5 + 0.3;
+            this.speedX = (Math.random() - 0.5) * 0.3;
+            this.speedY = (Math.random() - 0.5) * 0.3;
+            this.opacity = Math.random() * 0.3 + 0.05;
+            this.hue = [239, 186, 155][Math.floor(Math.random() * 3)];
+        };
+        Particle.prototype.update = function () {
+            this.x += this.speedX; this.y += this.speedY;
+            if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+        };
+        Particle.prototype.draw = function () {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsla(' + this.hue + ', 70%, 60%, ' + this.opacity + ')';
+            ctx.fill();
+        };
+        for (var j = 0; j < 45; j++) particles.push(new Particle());
+        function animateP() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var k = 0; k < particles.length; k++) { particles[k].update(); particles[k].draw(); }
+            requestAnimationFrame(animateP);
+        }
+        animateP();
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard — Civic Monitoring</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+    <canvas id="particles-canvas"></canvas>
+
+    <nav class="navbar">
+        <span class="logo">🏛️ Civic Monitor</span>
+        <span class="nav-badge">🛡️ Administrator</span>
+    </nav>
+
+    <div class="page">
+
+        <!-- Stats -->
+        <div class="stat-grid stagger">
+            <div class="stat-card glass stat-accent">
+                <span class="stat-icon">📊</span>
+                <span class="stat-value" data-count="{{ total }}">0</span>
+                <span class="stat-label">Total Issues</span>
+            </div>
+            <div class="stat-card glass stat-orange">
+                <span class="stat-icon">🔓</span>
+                <span class="stat-value" data-count="{{ open_count }}">0</span>
+                <span class="stat-label">Open</span>
+            </div>
+            <div class="stat-card glass stat-green">
+                <span class="stat-icon">✅</span>
+                <span class="stat-value" data-count="{{ closed_count }}">0</span>
+                <span class="stat-label">Resolved</span>
+            </div>
+            <div class="stat-card glass stat-red">
+                <span class="stat-icon">🚨</span>
+                <span class="stat-value" data-count="{{ critical_count }}">0</span>
+                <span class="stat-label">Critical</span>
+            </div>
+        </div>
+
+        <!-- Resolution Rate -->
+        {% if total > 0 %}
+        <div class="glass-static section animate-fade-in-up" style="margin-bottom:24px;">
+            <div class="section-title">
+                <span class="icon">📈</span> Resolution Rate
+            </div>
+            <div class="progress-wrap">
+                <div class="progress-label">
+                    <span>Resolved</span>
+                    <span id="rate-pct">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ward Summary -->
+        <div class="glass-static section animate-fade-in-up">
+            <div class="section-title">
+                <span class="icon">🏘️</span> Ward Summary
+            </div>
+            {% for w in ward_stats %}
+            <div class="ward-row">
+                <span class="ward-name">Ward {{ w.ward }}</span>
+                <span class="ward-stats">
+                    <span>📊 {{ w.total }}</span>
+                    <span style="color: var(--orange);">🔓 {{ w.open }}</span>
+                    <span style="color: var(--green);">✅ {{ w.closed }}</span>
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Issue Type Breakdown -->
+        <div class="glass-static section animate-fade-in-up">
+            <div class="section-title">
+                <span class="icon">📂</span> Issue Types
+            </div>
+            {% for t in type_stats %}
+            <div class="ward-row">
+                <span class="ward-name">{{ t.issue_type }}</span>
+                <span class="badge badge-open">{{ t.count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- All Issues -->
+        <div class="glass-static section animate-fade-in-up">
+            <div class="section-title">
+                <span class="icon">📋</span> All Issues
+            </div>
+            {% for issue in issues %}
+            <div class="issue-row">
+                <div>
+                    <span style="font-weight:700;">{{ issue.issue_type }}</span>
+                    <span style="color:var(--text-dim); font-size:0.8rem; margin-left:8px;">Ward {{ issue.ward }}</span>
+                </div>
+                {% if issue.status == 'OPEN' %}
+                <span class="badge badge-open">🔓 Open</span>
+                {% elif issue.status == 'IN_PROGRESS' %}
+                <span class="badge badge-progress">🔄 In Progress</span>
+                {% else %}
+                <span class="badge badge-closed">✅ Closed</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    <div id="stats-data" data-total="{{ total }}" data-closed="{{ closed_count }}" style="display:none;"></div>
+
+    <script>
+        // ── Animated Counters ──
+        function animateCounters() {
+            var elements = document.querySelectorAll('[data-count]');
+            for (var i = 0; i < elements.length; i++) {
+                (function (el) {
+                    var target = parseInt(el.getAttribute('data-count'));
+                    var duration = 1200;
+                    var startTime = performance.now();
+                    function tick(now) {
+                        var elapsed = now - startTime;
+                        var progress = Math.min(elapsed / duration, 1);
+                        var ease = 1 - Math.pow(1 - progress, 3);
+                        el.textContent = Math.floor(target * ease);
+                        if (progress < 1) requestAnimationFrame(tick);
+                        else el.textContent = target;
+                    }
+                    requestAnimationFrame(tick);
+                })(elements[i]);
+            }
+        }
+
+        // ── Progress Bar Animation ──
+        function animateProgress() {
+            var data = document.getElementById('stats-data');
+            var total = parseInt(data.getAttribute('data-total'));
+            var closed = parseInt(data.getAttribute('data-closed'));
+            if (total > 0) {
+                var pct = Math.round((closed / total) * 100);
+                setTimeout(function () {
+                    var fill = document.getElementById('progress-fill');
+                    var label = document.getElementById('rate-pct');
+                    if (fill) fill.style.width = pct + '%';
+                    if (label) label.textContent = pct + '%';
+                }, 600);
+            }
+        }
+
+        // Run after page loads
+        setTimeout(animateCounters, 300);
+        setTimeout(animateProgress, 500);
+
+        // ── Particles ──
+        var canvas = document.getElementById('particles-canvas');
+        var ctx = canvas.getContext('2d');
+        var particles = [];
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        function Particle() { this.reset(); }
+        Particle.prototype.reset = function () {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 1.5 + 0.3;
+            this.speedX = (Math.random() - 0.5) * 0.3;
+            this.speedY = (Math.random() - 0.5) * 0.3;
+            this.opacity = Math.random() * 0.25 + 0.05;
+            this.hue = [239, 186, 155][Math.floor(Math.random() * 3)];
+        };
+        Particle.prototype.update = function () {
+            this.x += this.speedX; this.y += this.speedY;
+            if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+        };
+        Particle.prototype.draw = function () {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsla(' + this.hue + ', 70%, 60%, ' + this.opacity + ')';
+            ctx.fill();
+        };
+        for (var i = 0; i < 35; i++) particles.push(new Particle());
+        function animateP() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (var j = 0; j < particles.length; j++) { particles[j].update(); particles[j].draw(); }
+            requestAnimationFrame(animateP);
+        }
+        animateP();
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+python-multipart
+jinja2
+ultralytics
+torch
+torchvision
+opencv-python
+google-generativeai
+passlib[bcrypt]
+bcrypt
+itsdangerous
