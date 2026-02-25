@@ -3,6 +3,6 @@
 set -o errexit
 
 # Install python dependencies from the backend folder
-pip install -r backend/requirements.txt
+pip install -r backend/requirements-deploy.txt
 
 # Add any other build steps here (like database migrations if you used Alembic)
