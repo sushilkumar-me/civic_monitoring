@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+gunicorn
 sqlalchemy
 psycopg2-binary
 python-multipart
@@ -7,7 +8,7 @@ jinja2
 ultralytics
 torch
 torchvision
-opencv-python
+opencv-python-headless
 google-generativeai
 passlib[bcrypt]
 bcrypt
