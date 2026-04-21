@@ -6,6 +6,10 @@ psycopg2-binary
 python-multipart
 jinja2
 google-generativeai
+python-dotenv
 bcrypt
 itsdangerous
 opencv-python-headless
+ultralytics
+torch
+torchvision

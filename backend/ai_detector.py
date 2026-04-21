@@ -1,9 +1,19 @@
-import google.generativeai as genai
-from dotenv import load_dotenv
-load_dotenv()
-from pathlib import Path
 import json
 import os
+from pathlib import Path
+
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv is not None:
+    load_dotenv()
 
 # ── Gemini Vision API Configuration ──
 # Set your API key as an environment variable: GEMINI_API_KEY
@@ -50,6 +60,10 @@ You MUST respond with ONLY a valid JSON object:
 def _get_gemini_model():
     """Lazy-load and cache the Gemini model."""
     global _gemini_model
+    if genai is None:
+        raise RuntimeError("google-generativeai is not installed")
+    if not GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY is not configured")
     if _gemini_model is None:
         genai.configure(api_key=GEMINI_API_KEY)
         _gemini_model = genai.GenerativeModel("gemini-2.0-flash")
@@ -101,7 +115,8 @@ def _load_yolo():
     if _yolo_model is None:
         from ultralytics import YOLO
         # Using a slightly larger model for the "best" local detection
-        _yolo_model = YOLO("yolov8s.pt") 
+        model_path = Path(__file__).resolve().parent / "yolov8s.pt"
+        _yolo_model = YOLO(str(model_path))
     return _yolo_model
 
 
@@ -109,8 +124,11 @@ def _detect_with_yolo(image_path: str):
     """
     Advanced Fallback: Uses object density and common COCO classes to infer civic issues.
     """
-    import cv2
-    model = _load_yolo()
+    try:
+        import cv2
+        model = _load_yolo()
+    except Exception as e:
+        return "General Civic Issue", "Low", 20, f"AI fallback unavailable: {e}"
     img = cv2.imread(image_path)
 
     if img is None:

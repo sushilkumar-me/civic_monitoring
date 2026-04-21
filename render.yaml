@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: civic-monitoring
+    env: python
+    plan: free
+    buildCommand: bash render-build.sh
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker --chdir backend main:app
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.5
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: civic-monitoring-db
+          property: connectionString
+
+databases:
+  - name: civic-monitoring-db
+    plan: free

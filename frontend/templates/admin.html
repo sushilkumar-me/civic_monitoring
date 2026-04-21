@@ -102,17 +102,17 @@
                 <span class="icon">📋</span> All Issues
             </div>
             {% for issue in issues %}
-            <div class="issue-row" id="issue-{{ issue.id }}" onclick="viewIssueDetails({
-                    id: '{{ issue.id }}',
-                    type: '{{ issue.issue_type }}',
-                    ward: '{{ issue.ward }}',
-                    priority: '{{ issue.priority }}',
-                    status: '{{ issue.status }}',
-                    before: '{{ issue.before_image }}',
-                    after: '{{ issue.after_image }}',
-                    confidence: '{{ issue.ai_confidence }}',
-                    reasoning: '{{ issue.ai_reasoning | replace(" \"", "&quot;" ) | replace("\n", " " ) |
-                replace("\r", "" ) }}' })">
+            <div class="issue-row" id="issue-{{ issue.id }}" onclick='viewIssueDetails({{ {
+                    "id": issue.id,
+                    "type": issue.issue_type,
+                    "ward": issue.ward,
+                    "priority": issue.priority,
+                    "status": issue.status,
+                    "before": issue.before_image,
+                    "after": issue.after_image,
+                    "confidence": issue.ai_confidence,
+                    "reasoning": issue.ai_reasoning
+                } | tojson }})'>
                 <div style="flex: 1;">
                     <span style="color:var(--text-dim); font-size:0.75rem; font-family:monospace; margin-right:8px;">#{{
                         issue.id }}</span>
@@ -152,11 +152,11 @@
             <div class="image-comparison-grid">
                 <div class="img-preview-box">
                     <span class="img-preview-label">BEFORE (Surveyor)</span>
-                    <img id="modal-before-img" src="/static/placeholder.webp" alt="Before">
+                    <img id="modal-before-img" src="" alt="Before">
                 </div>
                 <div class="img-preview-box" id="after-box">
                     <span class="img-preview-label">AFTER (Resolution)</span>
-                    <img id="modal-after-img" src="/static/placeholder.webp" alt="After">
+                    <img id="modal-after-img" src="" alt="After">
                 </div>
             </div>
 
@@ -358,10 +358,7 @@
         animateP();
     </script>
 
-</body>
-
-</html>
-<footer class="footer">
+    <footer class="footer">
     <div class="footer-content">
         <div class="footer-brand">
             <span class="logo">🏛️ Civic Monitor</span>
@@ -397,7 +394,7 @@
             <span>System Status: <span style="color: var(--green);">● Online</span></span>
         </div>
     </div>
-</footer>
+    </footer>
 </body>
 
 </html>

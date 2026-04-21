@@ -58,3 +58,27 @@ You can log in using the IDs provided in `DB.txt`:
 - **Navigation**: Integrated Google Maps links for engineers to navigate to reported issues.
 - **Reporting**: Surveyor captures images and GPS coordinates to report issues.
 - **Dashboard**: Admin view for monitoring overall civic health.
+
+## Render Deployment
+
+This project is now configured for Render using the root-level `render.yaml`.
+
+### Deploy Steps
+1. Push this repo to GitHub.
+2. In Render, create a new Blueprint instance from the repo.
+3. Render will create:
+   - a Python web service named `civic-monitoring`
+   - a PostgreSQL database named `civic-monitoring-db`
+4. After the first deploy, set these optional environment variables if you use them:
+   - `GEMINI_API_KEY`
+   - `SMTP_EMAIL`
+   - `SMTP_PASSWORD`
+5. If you need initial users or seed data, run the SQL from `DB.txt` against the Render database.
+
+### Render Commands
+- Build command: `bash render-build.sh`
+- Start command: `gunicorn -k uvicorn.workers.UvicornWorker --chdir backend main:app`
+
+### Notes
+- Uploaded files on Render are stored on the service filesystem and are ephemeral, so they may be lost on redeploy/restart.
+- Session cookies now use the `SESSION_SECRET` environment variable automatically.

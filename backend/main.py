@@ -14,6 +14,7 @@ from auth import hash_password, verify_password, generate_otp, otp_expiry, is_ot
 
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
+import os
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,7 +28,12 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="civic-monitor-secret-key-2026-change-in-prod")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "civic-monitor-secret-key-2026-change-in-prod"),
+    https_only=os.getenv("RENDER") == "true",
+    same_site="lax",
+)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 def get_db():
@@ -52,6 +58,29 @@ def require_login(request: Request):
     if not request.session.get("user_id"):
         return RedirectResponse("/", status_code=302)
     return None
+
+
+def require_role(request: Request, *allowed_roles: str):
+    """Redirect to dashboard when the logged-in user lacks the required role."""
+    redirect = require_login(request)
+    if redirect:
+        return redirect
+
+    if request.session.get("user_role") not in allowed_roles:
+        return RedirectResponse("/dashboard", status_code=302)
+    return None
+
+
+def save_upload_file(upload: UploadFile) -> str:
+    """Persist an uploaded file using a safe filename and return that filename."""
+    filename = Path(upload.filename or "").name
+    if not filename:
+        raise ValueError("No filename provided")
+
+    file_path = UPLOAD_DIR / filename
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(upload.file, buffer)
+    return filename
 
 
 # ══════════════════════════════════════
@@ -244,7 +273,7 @@ def dashboard(request: Request):
 
 @app.get("/surveyor", response_class=HTMLResponse)
 def surveyor(request: Request):
-    redirect = require_login(request)
+    redirect = require_role(request, "surveyor")
     if redirect:
         return redirect
     return (TEMPLATE_DIR / "surveyor.html").read_text(encoding="utf-8")
@@ -257,12 +286,12 @@ def report_issue(
     image: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    redirect = require_login(request)
+    redirect = require_role(request, "surveyor")
     if redirect:
         return redirect
 
     if not image.filename:
-        return {"error": "No image uploaded"}, 400
+        return JSONResponse(status_code=400, content={"error": "No image uploaded"})
 
     # Ensure coords are floats or default to a fixed point if invalid
     try:
@@ -272,9 +301,8 @@ def report_issue(
         lat_f = 22.30
         lon_f = 70.80
 
-    image_path = UPLOAD_DIR / image.filename
-    with open(image_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    filename = save_upload_file(image)
+    image_path = UPLOAD_DIR / filename
 
     issue_type, priority, confidence, reasoning = detect_issue(str(image_path))
     ward = crud.detect_ward(lat_f, lon_f)
@@ -283,7 +311,7 @@ def report_issue(
         issue_type=issue_type,
         priority=priority,
         ward=ward,
-        before_image=image.filename,
+        before_image=filename,
         latitude=lat_f,
         longitude=lon_f,
         ai_confidence=confidence,
@@ -298,7 +326,7 @@ def report_issue(
 
 @app.get("/engineer", response_class=HTMLResponse)
 def engineer(request: Request, db: Session = Depends(get_db)):
-    redirect = require_login(request)
+    redirect = require_role(request, "engineer")
     if redirect:
         return redirect
 
@@ -358,17 +386,20 @@ def engineer(request: Request, db: Session = Depends(get_db)):
 
 
 @app.post("/close/{issue_id}")
-def close_issue(request: Request, issue_id: int, image: UploadFile = Form(...), db: Session = Depends(get_db)):
-    redirect = require_login(request)
+def close_issue(request: Request, issue_id: int, image: UploadFile = File(...), db: Session = Depends(get_db)):
+    redirect = require_role(request, "engineer")
     if redirect:
         return redirect
 
-    image_path = UPLOAD_DIR / image.filename
-    with open(image_path, "wb") as buffer:
-        shutil.copyfileobj(image.file, buffer)
+    if not image.filename:
+        return JSONResponse(status_code=400, content={"error": "No image uploaded"})
 
-    issue = db.query(models.Issue).get(issue_id)
-    issue.after_image = image.filename
+    filename = save_upload_file(image)
+    issue = db.get(models.Issue, issue_id)
+    if issue is None:
+        return JSONResponse(status_code=404, content={"error": f"Issue #{issue_id} not found"})
+
+    issue.after_image = filename
     issue.status = "CLOSED"
     db.commit()
 
@@ -376,7 +407,7 @@ def close_issue(request: Request, issue_id: int, image: UploadFile = Form(...), 
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin(request: Request, db: Session = Depends(get_db)):
-    redirect = require_login(request)
+    redirect = require_role(request, "admin")
     if redirect:
         return redirect
 
@@ -428,18 +459,21 @@ def admin(request: Request, db: Session = Depends(get_db)):
 
 @app.post("/start/{issue_id}")
 def start_issue(request: Request, issue_id: int, db: Session = Depends(get_db)):
-    redirect = require_login(request)
+    redirect = require_role(request, "engineer")
     if redirect:
         return redirect
 
-    issue = db.query(models.Issue).get(issue_id)
+    issue = db.get(models.Issue, issue_id)
+    if issue is None:
+        return JSONResponse(status_code=404, content={"error": f"Issue #{issue_id} not found"})
+
     issue.status = "IN_PROGRESS"
     db.commit()
     return RedirectResponse("/engineer", 302)
 
 @app.post("/delete_issue/{issue_id}")
 def delete_issue(request: Request, issue_id: int, db: Session = Depends(get_db)):
-    redirect = require_login(request)
+    redirect = require_role(request, "admin")
     if redirect:
         return redirect
 
