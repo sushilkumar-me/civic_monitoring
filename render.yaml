@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: civic-monitoring
+    name: civic_monitoring-2
     env: python
     plan: free
     buildCommand: bash render-build.sh
@@ -13,9 +13,9 @@ services:
         generateValue: true
       - key: DATABASE_URL
         fromDatabase:
-          name: civic-monitoring-db
+          name: civic_monitoring-2-db
           property: connectionString
 
 databases:
-  - name: civic-monitoring-db
+  - name: civic_monitoring-2-db
     plan: free

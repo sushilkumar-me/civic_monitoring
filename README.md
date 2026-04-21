@@ -67,8 +67,8 @@ This project is now configured for Render using the root-level `render.yaml`.
 1. Push this repo to GitHub.
 2. In Render, create a new Blueprint instance from the repo.
 3. Render will create:
-   - a Python web service named `civic-monitoring`
-   - a PostgreSQL database named `civic-monitoring-db`
+   - a Python web service named `civic_monitoring-2`
+   - a PostgreSQL database named `civic_monitoring-2-db`
 4. After the first deploy, set these optional environment variables if you use them:
    - `GEMINI_API_KEY`
    - `SMTP_EMAIL`
