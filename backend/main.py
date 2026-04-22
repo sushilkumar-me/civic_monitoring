@@ -92,17 +92,17 @@ def login_page(request: Request):
     # If already logged in, redirect to dashboard
     if request.session.get("user_id"):
         return RedirectResponse("/dashboard", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": None})
 
 @app.post("/login")
 def do_login(request: Request, email: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.email == email).first()
 
     if not user:
-        return templates.TemplateResponse("login.html", {"request": request, "error": "No account found with this email"})
+        return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": "No account found with this email"})
 
     if not verify_password(password, user.password_hash):
-        return templates.TemplateResponse("login.html", {"request": request, "error": "Incorrect password"})
+        return templates.TemplateResponse(request=request, name="login.html", context={"request": request, "error": "Incorrect password"})
 
     # Generate and send OTP
     otp = generate_otp()
@@ -121,7 +121,7 @@ def do_login(request: Request, email: str = Form(...), password: str = Form(...)
 
 @app.get("/register", response_class=HTMLResponse)
 def register_page(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request, "error": None})
+    return templates.TemplateResponse(request=request, name="register.html", context={"request": request, "error": None})
 
 @app.post("/register")
 def do_register(
@@ -136,7 +136,7 @@ def do_register(
     # Check if email exists
     existing = db.query(models.User).filter(models.User.email == email).first()
     if existing:
-        return templates.TemplateResponse("register.html", {"request": request, "error": "Email already registered"})
+        return templates.TemplateResponse(request=request, name="register.html", context={"request": request, "error": "Email already registered"})
 
     # Create user
     user = models.User(
@@ -177,7 +177,7 @@ def verify_otp_page(request: Request, db: Session = Depends(get_db)):
     # For demo: show OTP if email not configured
     demo_otp = user.otp_code if not email_sent else None
 
-    return templates.TemplateResponse("verify_otp.html", {
+    return templates.TemplateResponse(request=request, name="verify_otp.html", context={
         "request": request,
         "error": None,
         "email": user.email,
@@ -196,7 +196,7 @@ def do_verify_otp(request: Request, otp: str = Form(...), db: Session = Depends(
     if not user or user.otp_code != otp:
         email_sent = request.session.get("otp_email_sent", False)
         demo_otp = user.otp_code if not email_sent else None
-        return templates.TemplateResponse("verify_otp.html", {
+        return templates.TemplateResponse(request=request, name="verify_otp.html", context={
             "request": request,
             "error": "Invalid OTP. Please try again.",
             "email": user.email,
@@ -207,7 +207,7 @@ def do_verify_otp(request: Request, otp: str = Form(...), db: Session = Depends(
     if not is_otp_valid(user.otp_expiry):
         email_sent = request.session.get("otp_email_sent", False)
         demo_otp = user.otp_code if not email_sent else None
-        return templates.TemplateResponse("verify_otp.html", {
+        return templates.TemplateResponse(request=request, name="verify_otp.html", context={
             "request": request,
             "error": "OTP expired. Please resend.",
             "email": user.email,
@@ -439,9 +439,7 @@ def admin(request: Request, db: Session = Depends(get_db)):
         {"issue_type": k, "count": v} for k, v in type_stats.items()
     ]
 
-    response = templates.TemplateResponse(
-        "admin.html",
-        {
+    response = templates.TemplateResponse(request=request, name="admin.html", context={
             "request": request,
             "total": total,
             "open_count": open_count,
@@ -450,8 +448,7 @@ def admin(request: Request, db: Session = Depends(get_db)):
             "ward_stats": ward_stats,
             "type_stats": type_stats_list,
             "issues": issues
-        }
-    )
+        })
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
