@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Float, Boolean
 from database import Base
 from datetime import datetime
-
+from sqlalchemy import func
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -27,4 +27,4 @@ class Issue(Base):
     longitude = Column(Float)
     ai_confidence = Column(Float, nullable=True)
     ai_reasoning = Column(Text, nullable=True)
-    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    created_at = Column(TIMESTAMP, default=func.now())
